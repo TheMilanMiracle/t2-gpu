@@ -1,6 +1,7 @@
-N=500
-M=1000
-STEPS=50
+N=1024
+M=1024:
+STEPS=10
+MODE="simple"
 
 default:
 	mkdir -p build
@@ -16,4 +17,4 @@ seq:
 cuda:
 	make
 	clear
-	./bin/cuda-parallel ${N} ${M} ${STEPS}
+	./bin/simple-cuda ${N} ${M} ${STEPS} ${MODE}

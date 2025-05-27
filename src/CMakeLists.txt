@@ -1,7 +1,14 @@
-add_library(conway-gol STATIC conway-gol.cpp)
-target_include_directories(conway-gol PUBLIC ${PROJECT_SOURCE_DIR}/include)
+add_library(
+        conway STATIC
+        cuda/2d-array-parallel-conway.cu
+        cuda/local-mem-parallel-conway.cu
+        cuda/simple-parallel-conway.cu
+        conway.cpp
+)
+target_include_directories(conway PUBLIC ${PROJECT_SOURCE_DIR}/include)
 
 add_executable(seq sequential-conway.cpp)
-target_link_libraries(seq conway-gol)
+target_link_libraries(seq conway)
 
-add_executable(cuda-parallel parallel-conway.cu)
+add_executable(cuda cuda/cuda-main.cu)
+target_link_libraries(cuda conway)
