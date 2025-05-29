@@ -220,7 +220,7 @@ int main(int argc, char const *argv[])
         report("Values copied to device");
 
         // Read the program source
-        std::string source = type == 0 ? "bin/CalcStep.cl" : (type == 1 ? "bin/CalcStep2D.cl" : "bin/CalcStepGroups.cl");
+        std::string source = type == 0 ? "bin/kernel/CalcStep.cl" : (type == 1 ? "bin/kernel/CalcStep2D.cl" : "bin/kernel/CalcStepGroups.cl");
         q.setKernel(source, "calcStep");
         report("Kernel " + source + " sent to device");
 
