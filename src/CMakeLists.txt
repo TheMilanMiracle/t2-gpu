@@ -15,11 +15,11 @@ target_link_libraries(cuda conway)
 
 
 #copy kernels to bin
-file(COPY CalcStep.cl DESTINATION ${PROJECT_SOURCE_DIR}/bin/kernel/)
-file(COPY CalcStep2D.cl DESTINATION ${PROJECT_SOURCE_DIR}/bin/kernel/)
-file(COPY CalcStepGroups.cl DESTINATION ${PROJECT_SOURCE_DIR}/bin/kernel/)
+file(COPY opencl/CalcStep.cl DESTINATION ${PROJECT_SOURCE_DIR}/bin/kernel/)
+file(COPY opencl/CalcStep2D.cl DESTINATION ${PROJECT_SOURCE_DIR}/bin/kernel/)
+file(COPY opencl/CalcStepGroups.cl DESTINATION ${PROJECT_SOURCE_DIR}/bin/kernel/)
 
-add_executable(opencl parallel-conway.cpp)
+add_executable(opencl opencl/opencl-main.cpp)
 target_include_directories(opencl PUBLIC ${PROJECT_SOURCE_DIR}/include)
 target_link_libraries(opencl OpenCL)
 
