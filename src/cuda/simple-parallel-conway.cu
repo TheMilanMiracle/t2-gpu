@@ -43,7 +43,6 @@ int runParallelConway()
 
 	cudaMemcpy(dCurrent, hWorld, N * M * sizeof(bool), cudaMemcpyHostToDevice);
 
-	size_t blockSize = 32;
 	size_t numBlocks = (N*M + blockSize - 1) / blockSize;
 
 	dim3 blockDim(blockSize, blockSize);

@@ -61,7 +61,6 @@ int run2DArrayParallelConway() {
 	for (int i = 0; i < N; i++)
 		cudaMemcpy(dCurrentData + i * M, hWorld[i], M * sizeof(bool), cudaMemcpyHostToDevice);
 
-	int blockSize = 32;
 	int numBlocks = (N*M + blockSize - 1) / blockSize;
 
 	dim3 blockDim(blockSize, blockSize);
