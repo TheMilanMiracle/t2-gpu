@@ -12,3 +12,14 @@ target_link_libraries(seq conway)
 
 add_executable(cuda cuda/cuda-main.cu)
 target_link_libraries(cuda conway)
+
+
+#copy kernels to bin
+file(COPY CalcStep.cl DESTINATION ${PROJECT_SOURCE_DIR}/bin/)
+file(COPY CalcStep2D.cl DESTINATION ${PROJECT_SOURCE_DIR}/bin/)
+file(COPY CalcStepGroups.cl DESTINATION ${PROJECT_SOURCE_DIR}/bin/)
+
+add_executable(openclConway parallel-conway.cpp)
+target_include_directories(openclConway PUBLIC ${PROJECT_SOURCE_DIR}/include)
+target_link_libraries(openclConway OpenCL)
+
