@@ -13,9 +13,9 @@
 #include <CL/opencl.hpp>
 
 
-#define THREADS 40
-// blocks of 4 by 4
-#define BLOCK_SIZE 8
+// #define THREADS 40
+// // blocks of 4 by 4
+// #define BLOCK_SIZE 8
 
 using std::chrono::microseconds;
 
@@ -64,6 +64,9 @@ public:
         std::cout << "Device: " << _device.getInfo<CL_DEVICE_NAME>()
                   << std::endl;
 
+        std::vector<::size_t> maxWorkItems = _device.getInfo<CL_DEVICE_MAX_WORK_ITEM_SIZES>();
+        std::cout << "Max sizes: " << maxWorkItems[0] << " " << maxWorkItems[1] << " " << maxWorkItems[2] << std::endl;
+        std::cout << "Max group size: " << _device.getInfo<CL_DEVICE_MAX_WORK_GROUP_SIZE>() << std::endl;
         // Create a context
         _context = cl::Context(devices);
 
@@ -133,14 +136,21 @@ public:
     }
 };
 
-void initWorld(std::vector<int> &world, const int M){
+void initWorld(std::vector<int> &world, const int M, const int N){
     const std::vector<std::pair<int,int>> glider = {
 		{4, 4},
         {5, 5},
         {6, 3}, {6, 4}, {6, 5}
 	};
-    for (auto [i, j] : glider)
-		world[j + i * M] = 1;
+    int offsets[5] = {10, 15, 20, 25, 30};
+    for(auto k : offsets){
+        for (auto [i, j] : glider){
+		    world[(j + k)%N + i * M] = 1;
+            world[j + (i + k)%M * M] = 1;
+            world[(j + k)%N + (i + k)%M * M] = 1;
+        }
+    }
+    
 }
 
 void printWorld(std::vector < int > &world, int N, int M){
@@ -169,7 +179,7 @@ int main(int argc, char const *argv[])
 {
     if (argc != 5)
 	{
-        report("usage: ./openclConway {N} {M} {steps} {normal | groups}");
+        report("usage: ./openclConway {N} {M} {steps} {0 | 1 | 2}");
 		exit(1);
 	}
 
@@ -177,8 +187,8 @@ int main(int argc, char const *argv[])
 	int M = atoi(argv[2]);
 
     int type = atoi(argv[4]);
-    if(type != 0 && type != 1){
-        report("usage: ./openclConway {N} {M} {steps} {type: 0|1}");
+    if(type != 0 && type != 1 && type != 2){
+        report("usage: ./openclConway {N} {M} {steps} {type: 0 | 1 | 2}");
 		exit(1);
     }
 
@@ -194,20 +204,13 @@ int main(int argc, char const *argv[])
         // empty world and next state
         std::vector<int> dCurrent(N*M, 0), dNext(N*M);
         //fill world
-        initWorld(dCurrent, M);
+        initWorld(dCurrent, M, N);
         auto t_end = std::chrono::high_resolution_clock::now();
         auto t_create_data =
             std::chrono::duration_cast<microseconds>(t_end - t_start).count();
 
-        report("World created:");
-        printWorld(dCurrent, N, M);
+        report("World created");
 
-        // allocate space for local memory?
-        // a group of BLOCK_SIZE x BLOCK_SIZE + todos los cell que lo rodean
-        //int localSize = (BLOCK_SIZE + 2) * (BLOCK_SIZE + 2);
-        //cl::LocalSpaceArg localmem = cl::Local(sizeof(int) * localSize);
-
-        // Copy values from host variables to device
         t_start = std::chrono::high_resolution_clock::now();
         q.addBuffer(dCurrent, CL_MEM_READ_ONLY);
         q.addBuffer(dNext, CL_MEM_WRITE_ONLY);
@@ -217,50 +220,75 @@ int main(int argc, char const *argv[])
         report("Values copied to device");
 
         // Read the program source
-        std::string source = type ? "bin/CalcStepGroups.cl" : "bin/CalcStep.cl";
+        std::string source = type == 0 ? "bin/CalcStep.cl" : (type == 1 ? "bin/CalcStep2D.cl" : "bin/CalcStepGroups.cl");
         q.setKernel(source, "calcStep");
         report("Kernel " + source + " sent to device");
 
+        int block_size = 64;
+        int block_size2d = 8;
+
         // Execute the function on the device 
-        cl::NDRange globalSize(THREADS, THREADS);
-        cl::NDRange localSize(BLOCK_SIZE, BLOCK_SIZE);
-
-        t_start = std::chrono::high_resolution_clock::now();
-
+        cl::NDRange globalSize; 
+        cl::NDRange localSize; 
+        if(type == 0){
+            globalSize = cl::NDRange((N * M) / block_size);
+            localSize = cl::NDRange(block_size);
+        }
+        else{
+            globalSize = cl::NDRange(N / block_size2d, M / block_size2d);
+            localSize = cl::NDRange(block_size2d, block_size2d);
+        }
+        
+        
         report("Starting cycle");
         
         const int maxStep = atoi(argv[3]);
         int step = 0;
+        std::vector< std::string > kernel_per_step (maxStep+1);
+        std::vector< std::string > memory_per_step (maxStep+1);
+
+        auto t_start_cycle = std::chrono::high_resolution_clock::now();
         while (step++ <= maxStep){
-        
+            
+            t_start = std::chrono::high_resolution_clock::now();
             // calls kernel, the buffers are passed as first arguments in the order they were added
             // N and M are passed as the rest of the kernel arguments
             cl::Event event = q(globalSize, localSize, N, M);
             event.wait();
-
+            t_end = std::chrono::high_resolution_clock::now();
+            auto t_kernel_step = std::chrono::duration_cast<std::chrono::microseconds>(t_end - t_start).count();
+            
+            t_start = std::chrono::high_resolution_clock::now();
             // Copy the output variable from device to host
             // Copies it to current, for next step
             q.readBuffer(dNext, 1);
-            //printWorld(dNext, N, M);
 
-            //write data in dNext to buffer index 0 (dCurrent)
+            // write data in dNext to buffer index 0 (dCurrent)
             q.updateBuffer(dNext, 0);
+            t_end = std::chrono::high_resolution_clock::now();
+            auto t_kernel_memory = std::chrono::duration_cast<std::chrono::microseconds>(t_end - t_start).count();
+            
+            kernel_per_step[step-1] = std::to_string(t_kernel_step);
+            memory_per_step[step-1] = std::to_string(t_kernel_memory);
         }
 
-        report("Finished cycle\nResult:");
-
-        printWorld(dNext, N, M);
+        report("Finished cycle");
 
         t_end = std::chrono::high_resolution_clock::now();
         auto t_kernel =
-            std::chrono::duration_cast<std::chrono::microseconds>(t_end - t_start)
+            std::chrono::duration_cast<std::chrono::microseconds>(t_end - t_start_cycle)
                 .count();
 
         report("Time to create data: " + std::to_string(t_create_data) + " microseconds");
         report("Time to copy data to device: " + std::to_string(t_copy_to_device) + " microseconds");
         report("Time to execute kernel: " + std::to_string(t_kernel) + " microseconds");
         
-
+        report("For analysis:");
+        report(std::to_string(t_create_data) + " " + std::to_string(t_copy_to_device) + " " + std::to_string(t_kernel));
+        
+        for(int i = 0; i < maxStep; i++){
+            report(kernel_per_step[i] + " " + memory_per_step[i]);
+        }
     }
     catch (cl::Error err)
     {
