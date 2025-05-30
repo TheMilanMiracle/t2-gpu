@@ -18,8 +18,7 @@ __kernel void calcStep(global int *current, global int *next, int N, int M){
                         current[worldIdx(i + 1, j - 1, N, M)] + current[worldIdx(i + 1, j, N, M)] + current[worldIdx(i + 1, j + 1, N, M)];
 
         //set next step 
-        //next[gindex] = neighbours == 3 || (neighbours == 2 && current[gindex]);        
-        next[gindex] = 1;
+        next[gindex] = neighbours == 3 || (neighbours == 2 && current[gindex]);        
     }
 
     
