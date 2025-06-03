@@ -76,3 +76,20 @@ plt.xlabel("Tamaño de la grilla")
 plt.legend()
 plt.grid(True)
 plt.savefig("results/computing_kernel_comp.png")
+
+simpleDF["update%"] = simpleDF["updating_buffers"] * 100 / simpleDF["full_cycle"]
+dosDimDF["update%"] = dosDimDF["updating_buffers"] * 100 / dosDimDF["full_cycle"]
+gruposDF["update%"] = gruposDF["updating_buffers"] * 100 / gruposDF["full_cycle"]
+
+plt.figure(figsize=(8, 5))
+plt.plot(simpleDF["gridN"], simpleDF["update%"], color="#0000aa", label = "simple parallel")
+plt.plot(dosDimDF["gridN"], dosDimDF["update%"], color="#00aa00", label = "2 dimensions parallel")
+plt.plot(gruposDF["gridN"], gruposDF["update%"], color="#aa0000", label = "local memory parallel")
+
+plt.ylabel("Porcentaje del tiempo del ciclo usado en actualizar los buffers")
+plt.xlabel("Tamaño de la grilla")
+
+plt.legend()
+
+plt.grid(True)
+plt.savefig("results/updatingTime.png")
