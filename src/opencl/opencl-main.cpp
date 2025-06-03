@@ -12,15 +12,13 @@
 #define CL_HPP_ENABLE_EXCEPTIONS
 #include <CL/opencl.hpp>
 
-
-// #define THREADS 40
-// // blocks of 4 by 4
-// #define BLOCK_SIZE 8
-
 using std::chrono::microseconds;
 
+#define block_size 64
+#define block_size_2d 8
 
-// Queue abstraction del aux
+
+// Command queue abstraction by Vicente Gonzales
 class Queue
 {
 private:
@@ -123,9 +121,7 @@ public:
         {
             _kernel.setArg(i, _buffers[i]);
         }
-        //add local memory arg
-        //_kernel.setArg(_buffers.size(), cl::LocalSpaceArg);
-        // add a +1 to index for local array
+
         setKernelArgs(_buffers.size(), args...);
 
         cl::Event event;
@@ -136,6 +132,13 @@ public:
     }
 };
 
+/**
+ * Initializes the world with several gliders in different places
+ * 
+ * @param world array to be initialized
+ * @param M size of the array's 2d representation on second dimension
+ * @param N size of the array's 2d representation on first dimension
+ */
 void initWorld(std::vector<int> &world, const int M, const int N){
     const std::vector<std::pair<int,int>> glider = {
 		{4, 4},
@@ -153,6 +156,9 @@ void initWorld(std::vector<int> &world, const int M, const int N){
     
 }
 
+/**
+ * Prints a world to stdout using squares
+ */
 void printWorld(std::vector < int > &world, int N, int M){
     for(int i = 0; i < N*M; i++){
         if(world[i]) std::cout << "■";
@@ -162,6 +168,9 @@ void printWorld(std::vector < int > &world, int N, int M){
     std::cout << std::endl;
 }
 
+/**
+ * Prints a world to stdout using plain values
+ */
 void printWorldPlain(std::vector < int > &world, int N, int M){
     for(int i = 0; i < N*M; i++){
         std::cout << world[i];
@@ -170,11 +179,17 @@ void printWorldPlain(std::vector < int > &world, int N, int M){
     std::cout << std::endl;
 }
 
+/**
+ * Prints to stdout
+ */
 void report(std::string rep){
     std::cout << rep << std::endl;
 }
 
 
+/**
+ * Runs a simulation of Conway's Game of Life implemented in OpenCL
+ */
 int main(int argc, char const *argv[])
 {
     if (argc != 5)
@@ -192,10 +207,9 @@ int main(int argc, char const *argv[])
 		exit(1);
     }
 
-
     try
     {
-
+        // Command queue
         Queue q;
         report("Queue created");
 
@@ -205,73 +219,74 @@ int main(int argc, char const *argv[])
         std::vector<int> dCurrent(N*M, 0), dNext(N*M);
         //fill world
         initWorld(dCurrent, M, N);
+        report("World created");
+
         auto t_end = std::chrono::high_resolution_clock::now();
         auto t_create_data =
             std::chrono::duration_cast<microseconds>(t_end - t_start).count();
 
-        report("World created");
-
         t_start = std::chrono::high_resolution_clock::now();
+
         q.addBuffer(dCurrent, CL_MEM_READ_ONLY);
         q.addBuffer(dNext, CL_MEM_WRITE_ONLY);
+        report("Values copied to device");
+
         t_end = std::chrono::high_resolution_clock::now();
         auto t_copy_to_device =
             std::chrono::duration_cast<microseconds>(t_end - t_start).count();
-        report("Values copied to device");
 
         // Read the program source
         std::string source = type == 0 ? "bin/kernel/CalcStep.cl" : (type == 1 ? "bin/kernel/CalcStep2D.cl" : "bin/kernel/CalcStepGroups.cl");
         q.setKernel(source, "calcStep");
         report("Kernel " + source + " sent to device");
 
-        int block_size = 64;
-        int block_size2d = 8;
-
-        // Execute the function on the device 
+        // Set dimensions for the kernel
         cl::NDRange globalSize; 
         cl::NDRange localSize; 
         if(type == 0){
-            globalSize = cl::NDRange((N * M) / block_size);
+            globalSize = cl::NDRange(N * M);
             localSize = cl::NDRange(block_size);
         }
         else{
-            globalSize = cl::NDRange(N / block_size2d, M / block_size2d);
-            localSize = cl::NDRange(block_size2d, block_size2d);
+            globalSize = cl::NDRange(N, M);
+            localSize = cl::NDRange(block_size_2d, block_size_2d);
         }
-        
-        
-        report("Starting cycle");
         
         const int maxStep = atoi(argv[3]);
         int step = 0;
+        // arrays for logging
         std::vector< std::string > kernel_per_step (maxStep+1);
         std::vector< std::string > memory_per_step (maxStep+1);
 
         auto t_start_cycle = std::chrono::high_resolution_clock::now();
+
+        report("Starting cycle");
         while (step++ <= maxStep){
             
             t_start = std::chrono::high_resolution_clock::now();
+
             // calls kernel, the buffers are passed as first arguments in the order they were added
             // N and M are passed as the rest of the kernel arguments
             cl::Event event = q(globalSize, localSize, N, M);
             event.wait();
+
             t_end = std::chrono::high_resolution_clock::now();
             auto t_kernel_step = std::chrono::duration_cast<std::chrono::microseconds>(t_end - t_start).count();
             
             t_start = std::chrono::high_resolution_clock::now();
+
             // Copy the output variable from device to host
             // Copies it to current, for next step
             q.readBuffer(dNext, 1);
-
             // write data in dNext to buffer index 0 (dCurrent)
             q.updateBuffer(dNext, 0);
+
             t_end = std::chrono::high_resolution_clock::now();
             auto t_kernel_memory = std::chrono::duration_cast<std::chrono::microseconds>(t_end - t_start).count();
             
             kernel_per_step[step-1] = std::to_string(t_kernel_step);
             memory_per_step[step-1] = std::to_string(t_kernel_memory);
         }
-
         report("Finished cycle");
 
         t_end = std::chrono::high_resolution_clock::now();
@@ -279,6 +294,7 @@ int main(int argc, char const *argv[])
             std::chrono::duration_cast<std::chrono::microseconds>(t_end - t_start_cycle)
                 .count();
 
+        // Logging
         report("Time to create data: " + std::to_string(t_create_data) + " microseconds");
         report("Time to copy data to device: " + std::to_string(t_copy_to_device) + " microseconds");
         report("Time to execute kernel: " + std::to_string(t_kernel) + " microseconds");
