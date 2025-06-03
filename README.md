@@ -4,8 +4,7 @@ This mini-project was developed as an assignment for the course on GPU Computing
 Other than achieving a working solution, 3 different configurations were implemented for the same problem :
 - Using 1 dimension to represent the problem and global memory for thread access.
 - Using 2 dimensions and global memory.
-- Using 1 dimension and local memory per group of threads.
-- Using 2 dimensions and local memory (_only in OpenCL_)
+- Using 2 dimensions and local memory per group of threads.
 
 ## Building the project
 ```
@@ -31,14 +30,13 @@ Similarly to the sequential, the cuda implementation runs with the following com
 `mode` corresponds to which of the configurations will be runned. The options are:
 - `simple`: 1 dimension and global memory
 - `array2d`: 2 dimensions and global memory
-- `localmemory`: 1 dimension and local memory
+- `localmemory`: 2 dimensions and local memory
 
 Lastly, the opencl implementation:
 ```
-./openclConway N M steps mode
+./opencl N M steps mode
 ```
 Where mode corresponds to one of the following:
 - `0`: 1 dimension and global memory
 - `1`: 2 dimensions and global memory
-- `2`: 1 dimension and local memory
-- `3`: 2 dimensions and local memory
+- `2`: 2 dimensions and local memory
