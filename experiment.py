@@ -17,7 +17,7 @@ while mode <= 2:
         N = i
         M = i
 
-        result = os.popen("./bin/openclConway " + str(N) + " " + str(M) + " " + str(STEPS) + " " + str(mode)).read().splitlines()[-11 :]
+        result = os.popen("./bin/opencl " + str(N) + " " + str(M) + " " + str(STEPS) + " " + str(mode)).read().splitlines()[-11 :]
         t_create_data, t_copy_data, t_kernel = result[0].split()
 
         # calculo celdas evaluadas por segundo
