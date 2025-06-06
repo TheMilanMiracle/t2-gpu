@@ -30,18 +30,28 @@ void calcStep(const bool* currentStep, bool* nextStep, const size_t N, const siz
 
 int runParallelConway()
 {
+	auto t0 = std::chrono::high_resolution_clock::now();
 	bool* hWorld = new bool[N*M];
 
 	init(hWorld);
+	auto t1 = std::chrono::high_resolution_clock::now();
+	std::cout	<< "Initial data set in "
+				<< std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count()
+				<< " microseconds"
+				<< std::endl;
 
-	if (N <= 50 and M <= 100)
-		std::cout << hWorld << std::endl;
-
+	t0 = std::chrono::high_resolution_clock::now();
 	bool *dCurrent, *dNext;
 	cudaMalloc(&dCurrent, N * M * sizeof(bool));
 	cudaMalloc(&dNext, N * M * sizeof(bool));
 
 	cudaMemcpy(dCurrent, hWorld, N * M * sizeof(bool), cudaMemcpyHostToDevice);
+	t1 = std::chrono::high_resolution_clock::now();
+
+	std::cout	<< "Data copied to device in "
+				<< std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count()
+				<< " microseconds"
+				<< std::endl;
 
 	size_t numBlocks = (N*M + blockSize - 1) / blockSize;
 
@@ -50,49 +60,50 @@ int runParallelConway()
 
 	const int maxStep = simSteps;
 	int step = 0;
-	long totalTimeNS = 0.;
-	long totalTimeMS = 0.;
+	auto cycleStart = std::chrono::high_resolution_clock::now();
 	while (step++ < maxStep)
 	{
-		auto start = std::chrono::high_resolution_clock::now();
+		t0 = std::chrono::high_resolution_clock::now();
 		calcStep<<<numBlocks, blockSize>>>(dCurrent, dNext, N, M);
 		cudaDeviceSynchronize();
-		auto end = std::chrono::high_resolution_clock::now();
+		t1 = std::chrono::high_resolution_clock::now();
 
 		if (cudaError_t err = cudaGetLastError(); err != cudaSuccess) {
 			fprintf(stderr, "CUDA Error: %s\n", cudaGetErrorString(err));
 			exit(1);
 		}
 
-		cudaMemcpy(hWorld, dNext, N * M, cudaMemcpyDeviceToHost);
-		cudaMemcpy(dCurrent, dNext, N * M, cudaMemcpyDeviceToDevice);
-		cudaMemset(dNext, false, N * M * sizeof(bool));
-
 		std::cout	<< "step "
 					<< step
 					<< " computed in "
-					<< std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count()
-					<< "ms ("
-					<< std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count()
-					<< ") ns"
+					<< std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count()
+					<< " microseconds"
 					<< std::endl;
 
-		totalTimeNS += std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
-		totalTimeMS += std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+		t0 = std::chrono::high_resolution_clock::now();
+		cudaMemcpy(hWorld, dNext, N * M, cudaMemcpyDeviceToHost);
+		cudaMemcpy(dCurrent, dNext, N * M, cudaMemcpyDeviceToDevice);
+		cudaMemset(dNext, false, N * M * sizeof(bool));
+		t1 = std::chrono::high_resolution_clock::now();
 
-		if (N <= 50 and M <= 100)
-		{
-			std::cout << "\033[2J\033[H" << hWorld << std::endl;
-			usleep(500000);
-		}
+		std::cout	<< "Updated buffers in "
+					<< std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count()
+					<< " microseconds"
+					<< std::endl;
 
 	}
 
+	auto cycleEnd = std::chrono::high_resolution_clock::now();
+
+	std::cout	<< "Total time: "
+				<< std::chrono::duration_cast<std::chrono::microseconds>(cycleEnd - cycleStart).count()
+				<< " microseconds"
+				<< std::endl;
+
 	std::cout	<< "avg computing time: "
-				<< totalTimeMS / static_cast<float>(maxStep)
-				<< " ms ("
-				<< totalTimeNS / static_cast<float>(maxStep)
-				<< " ns)";
+				<< std::chrono::duration_cast<std::chrono::microseconds>(cycleEnd - cycleStart).count() / static_cast<float>(maxStep)
+				<< " microseconds"
+				<< std:: endl;
 
 	cudaFree(dCurrent);
 	cudaFree(dNext);
