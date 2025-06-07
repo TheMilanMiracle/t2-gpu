@@ -26,22 +26,25 @@ int main(int argc, char* argv[])
 	N = atoi(argv[1]);
 	M = atoi(argv[2]);
 
+	auto t0 = std::chrono::high_resolution_clock::now();
 	bool* w = new bool[N * M];
 	init(w);
+	auto t1 = std::chrono::high_resolution_clock::now();
+	std::cout	<< "Initial data set in "
+				<< std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count()
+				<< " microseconds"
+				<< std::endl;
 
-	if (N <= 50 and M <= 100)
-		std::cout << w << std::endl;
 
 	const int maxStep = atoi(argv[3]);
 
 	int step = 0;
-	long totalTimeNS = 0.;
-	long totalTimeMS = 0.;
+	auto start = std::chrono::high_resolution_clock::now();
 	while (step++ < maxStep)
 	{
 		bool* nextStep = new bool[N * M];
 
-		auto start = std::chrono::high_resolution_clock::now();
+		t0 = std::chrono::high_resolution_clock::now();
 		{
 			for (int i = 0; i < N; i++)
 				for(int j = 0; j < M; j++)
@@ -50,34 +53,30 @@ int main(int argc, char* argv[])
 					nextStep[i + j * N] = neighbours == 3 or (neighbours == 2 and w[i + j * N]);
 				}
 		}
-		auto end = std::chrono::high_resolution_clock::now();
+		t1 = std::chrono::high_resolution_clock::now();
 
 		w = nextStep;
 		
 		std::cout	<< "step "
 					<< step
 					<< " computed in "
-					<< std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count()
-					<< "ms ("
-					<< std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count()
-					<< ") ns"
+					<< std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count()
+					<< " microseconds"
 					<< std::endl;
 
-		totalTimeNS += std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
-		totalTimeMS += std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-
-		if (N <= 50 and M <= 100)
-		{
-			std::cout << "\033[2J\033[H" << w << std::endl;
-			usleep(500000);
-		}
 	}
 
+	auto end = std::chrono::high_resolution_clock::now();
+
+	std::cout	<< "Total time: "
+				<< std::chrono::duration_cast<std::chrono::microseconds>(end - start).count()
+				<< " microseconds"
+				<< std::endl;
+
 	std::cout	<< "avg computing time: "
-				<< totalTimeMS / static_cast<float>(maxStep)
-				<< " ms ("
-				<< totalTimeNS / static_cast<float>(maxStep)
-				<< " ns)";
+			<< std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() / static_cast<float>(maxStep)
+			<< " microseconds"
+			<< std:: endl;
 
 	delete[] w;
 
