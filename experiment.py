@@ -22,7 +22,7 @@ for mode in modes:
     out_files.append(out_file)
 
     out_csv = open(out_file, "w")
-    out_csv.write("gridN;gridM;create_data;copy_data;full_cycle;computing_kernel;updating_buffers;average_cell/s\n")
+    out_csv.write("gridN;gridM;create_data;copy_data;full_cycle;computing_kernel;updating_buffers;average_cell_per_sec\n")
 
     i = 32
     while i <= 2 ** 13:
@@ -36,8 +36,8 @@ for mode in modes:
                 "groups" : 2
             }
 
-            result = os.popen("./bin/opencl " + str(N) + " " + str(M) + " " + str(STEPS) + " " + str(mode_arg[mode]))
-            t_create_data, t_copy_data, t_kernel = result.read().splitlines()[-11 :][0].split()
+            result = os.popen("./bin/opencl " + str(N) + " " + str(M) + " " + str(STEPS) + " " + str(mode_arg[mode])).read().splitlines()[-11 :]
+            t_create_data, t_copy_data, t_kernel = result[0].split()
 
             # calculo celdas evaluadas por segundo
             # en cada iteración se deberian consultar N*M * 9 celdas
@@ -54,9 +54,9 @@ for mode in modes:
                 t_computing += int(line[0])
                 t_kernel_memory += int(line[1])
 
-                average_cells_per_second += (int(line[0]) / cellsRead) / STEPS
+                average_cells_per_second += (int(line[0]) / cellsRead) / STEPS * 1_000_000
 
-            out_csv.write("{};{};{};{};{};{};{:.10f}\n".format(N, M, t_create_data, t_copy_data, t_computing, t_kernel_memory, average_cells_per_second))
+            out_csv.write("{};{};{};{};{};{};{};{:.10f}\n".format(N, M, t_create_data, t_copy_data, t_kernel, t_computing, t_kernel_memory, average_cells_per_second))
 
         elif _bin == "cuda":
 
@@ -69,15 +69,24 @@ for mode in modes:
             result = os.popen("./bin/cuda " + str(N) + " " + str(M) + " " + str(STEPS) + " " + str(mode_arg[mode]))
             result = result.read()
 
+            cellsRead = N * M * 9
+
             t_create_data = result.split('\n')[0].split()[4]
             t_copy_data = result.split('\n')[1].split()[5]
-            t_computing = result.split('\n')[len(result.split('\n')) - 3].split()[2]
-            t_kernel_memory = 0
-            for r in [x.split()[4] for x in list(filter(lambda x: 'Updated' not in x, result.split('\n')[2: len(result.split('\n')) - 3]))]:
-                t_kernel_memory += int(r)
-            average_cells_per_second = 9 / float(result.split('\n')[len(result.split('\n')) - 2].split()[3])
+            print(result.split('\n')[len(result.split('\n')) - 3])
+            print(result.split('\n')[len(result.split('\n')) - 2])
+            t_kernel = result.split('\n')[len(result.split('\n')) - 3].split()[2]
 
-            out_csv.write("{};{};{};{};{};{};{:.10f}\n".format(N, M, t_create_data, t_copy_data, t_computing, t_kernel_memory, average_cells_per_second))
+            t_kernel_memory = 0
+            t_computing = 0
+            for r in [x.split()[3] for x in list(filter(lambda x: 'Updated' in x, result.split('\n')[2: len(result.split('\n')) - 3]))]:
+                t_kernel_memory += int(r)
+            for r in [x.split()[4] for x in list(filter(lambda x: 'step' in x, result.split('\n')[2: len(result.split('\n')) - 3]))]:
+                t_computing += int(r)
+
+            average_cells_per_second = float(result.split('\n')[len(result.split('\n')) - 2].split()[3]) / cellsRead * 1_000_000 # multiply by 10^6 for conversion comp/μs to comps/s
+
+            out_csv.write("{};{};{};{};{};{};{};{:.10f}\n".format(N, M, t_create_data, t_copy_data, t_kernel, t_computing, t_kernel_memory, average_cells_per_second))
 
         print(f"{mode} mode with size {i}x{i} done!")
         out_csv.flush()
@@ -88,6 +97,18 @@ for mode in modes:
 simpleDF = pd.read_csv(out_files[0], delimiter=";")
 dosDimDF = pd.read_csv(out_files[1], delimiter=";")
 gruposDF = pd.read_csv(out_files[2], delimiter=";")
+
+plt.figure(figsize=(8, 5))
+plt.plot(simpleDF["gridN"], simpleDF["average_cell_per_sec"], color="#0000aa", label = "simple parallel")
+plt.plot(dosDimDF["gridN"], dosDimDF["average_cell_per_sec"], color="#00aa00", label = "2 dimensions parallel")
+plt.plot(gruposDF["gridN"], gruposDF["average_cell_per_sec"], color="#aa0000", label = "local memory parallel")
+plt.ylabel("Evaluaciones/s")
+plt.xlabel("Tamaño de la grilla")
+plt.xscale('log', base=2)
+
+plt.legend()
+plt.grid(True)
+plt.savefig(f"results/{_bin}_comps_second.png")
 
 plt.figure(figsize=(8, 5))
 plt.plot(simpleDF["gridN"], simpleDF["full_cycle"], color="#0000aa", label = "simple parallel")
