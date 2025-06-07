@@ -118,5 +118,5 @@ def plot(ylabel: str, title: str, file: str):
 
 plot("average_cell_per_sec", "Evaluaciones/s", f"results/{_bin}_comps_second.png")
 plot("full_cycle", "Tiempo ciclo completo (μs)", f"results/{_bin}_full_cycle_comp.png")
-plot("computing_kernel", "Tiempo total usado para ejecutar el kernel", f"results/{_bin}_computing_kernel_comp.png")
+plot("computing_kernel", "Tiempo total usado para ejecutar el kernel (μs)", f"results/{_bin}_computing_kernel_comp.png")
 plot("updating_buffers", "Tiempo total usado para actualizar buffers (μs)", f"results/{_bin}_updatingTime.png")
