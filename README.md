@@ -40,3 +40,18 @@ Where mode corresponds to one of the following:
 - `0`: 1 dimension and global memory
 - `1`: 2 dimensions and global memory
 - `2`: 2 dimensions and local memory
+
+## Running the experiments
+The experiments can be run with the scripts `experiment.py` and `experiment_seq.py`.
+
+`experiment.py` need an argument to specify the implementation that will run the experiments:
+```
+./experiment.py impl
+```
+Where `impl` corresponds to one of the following:
+- `cuda`: to run experiments with the cuda parallel implementation
+- `opencl`: to run experiments with the opencl parallel implementation
+
+the results and some graphs will be saved to the `results` folder.
+
+`experiment_seq.py` runs similar experiments, but with the _CPU_ based implementation.

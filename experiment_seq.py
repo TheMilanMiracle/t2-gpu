@@ -62,7 +62,7 @@ plt.savefig(f"results/seq_computing_kernel_comp.png")
 
 
 plt.figure(figsize=(8, 5))
-plt.plot(df["gridN"], df["full_cycle"], color="#0000aa", label = "simple parallel")
+plt.plot(df["gridN"], df["full_cycle"], color="#0000aa", label = "sequential implementation")
 
 plt.ylabel("Tiempo ciclo completo (μs)")
 plt.xlabel("Tamaño de la grilla")

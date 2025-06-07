@@ -73,8 +73,6 @@ for mode in modes:
 
             t_create_data = result.split('\n')[0].split()[4]
             t_copy_data = result.split('\n')[1].split()[5]
-            print(result.split('\n')[len(result.split('\n')) - 3])
-            print(result.split('\n')[len(result.split('\n')) - 2])
             t_kernel = result.split('\n')[len(result.split('\n')) - 3].split()[2]
 
             t_kernel_memory = 0
@@ -98,57 +96,27 @@ simpleDF = pd.read_csv(out_files[0], delimiter=";")
 dosDimDF = pd.read_csv(out_files[1], delimiter=";")
 gruposDF = pd.read_csv(out_files[2], delimiter=";")
 
-plt.figure(figsize=(8, 5))
-plt.plot(simpleDF["gridN"], simpleDF["average_cell_per_sec"], color="#0000aa", label = "simple parallel")
-plt.plot(dosDimDF["gridN"], dosDimDF["average_cell_per_sec"], color="#00aa00", label = "2 dimensions parallel")
-plt.plot(gruposDF["gridN"], gruposDF["average_cell_per_sec"], color="#aa0000", label = "local memory parallel")
-plt.ylabel("Evaluaciones/s")
-plt.xlabel("Tamaño de la grilla")
-plt.xscale('log', base=2)
+def plot(ylabel: str, title: str, file: str):
+    fig, ax = plt.subplots(figsize=(8, 5))
 
-plt.legend()
-plt.grid(True)
-plt.savefig(f"results/{_bin}_comps_second.png")
+    ax.plot(simpleDF["gridN"], simpleDF[ylabel], color="#0000aa", label="simple parallel")
+    ax.plot(dosDimDF["gridN"], dosDimDF[ylabel], color="#00aa00", label="2 dimensions parallel")
+    ax.plot(gruposDF["gridN"], gruposDF[ylabel], color="#aa0000", label="local memory parallel")
 
-plt.figure(figsize=(8, 5))
-plt.plot(simpleDF["gridN"], simpleDF["full_cycle"], color="#0000aa", label = "simple parallel")
-plt.plot(dosDimDF["gridN"], dosDimDF["full_cycle"], color="#00aa00", label = "2 dimensions parallel")
-plt.plot(gruposDF["gridN"], gruposDF["full_cycle"], color="#aa0000", label = "local memory parallel")
+    ax.set_ylabel(title)
+    ax.set_xlabel("Tamaño de la grilla")
 
-plt.ylabel("Tiempo ciclo completo (μs)")
-plt.xlabel("Tamaño de la grilla")
-plt.xscale('log', base=2)
+    ax.set_xscale('log', base=2)
 
-plt.legend()
-plt.grid(True)
-plt.savefig(f"results/{_bin}_full_cycle_comp.png")
+    ax.ticklabel_format(axis='y', style='sci', scilimits=(0, 0))
 
-plt.figure(figsize=(8, 5))
-plt.plot(simpleDF["gridN"], simpleDF["computing_kernel"], color="#0000aa", label = "simple parallel")
-plt.plot(dosDimDF["gridN"], dosDimDF["computing_kernel"], color="#00aa00", label = "2 dimensions parallel")
-plt.plot(gruposDF["gridN"], gruposDF["computing_kernel"], color="#aa0000", label = "local memory parallel")
+    ax.legend()
+    ax.grid(True)
+    plt.tight_layout()
+    plt.savefig(file)
 
-plt.ylabel("Tiempo total de ejecuciones del kernel (μs)")
-plt.xlabel("Tamaño de la grilla")
-plt.xscale('log', base=2)
 
-plt.legend()
-plt.grid(True)
-plt.savefig(f"results/{_bin}_computing_kernel_comp.png")
-
-simpleDF["update%"] = simpleDF["updating_buffers"] * 100 / simpleDF["full_cycle"]
-dosDimDF["update%"] = dosDimDF["updating_buffers"] * 100 / dosDimDF["full_cycle"]
-gruposDF["update%"] = gruposDF["updating_buffers"] * 100 / gruposDF["full_cycle"]
-
-plt.figure(figsize=(8, 5))
-plt.plot(simpleDF["gridN"], simpleDF["update%"], color="#0000aa", label = "simple parallel")
-plt.plot(dosDimDF["gridN"], dosDimDF["update%"], color="#00aa00", label = "2 dimensions parallel")
-plt.plot(gruposDF["gridN"], gruposDF["update%"], color="#aa0000", label = "local memory parallel")
-
-plt.ylabel("Porcentaje del tiempo del ciclo usado en actualizar los buffers")
-plt.xlabel("Tamaño de la grilla")
-plt.xscale('log', base=2)
-
-plt.legend()
-plt.grid(True)
-plt.savefig(f"results/{_bin}_updatingTime.png")
+plot("average_cell_per_sec", "Evaluaciones/s", f"results/{_bin}_comps_second.png")
+plot("full_cycle", "Tiempo ciclo completo (μs)", f"results/{_bin}_full_cycle_comp.png")
+plot("computing_kernel", "Tiempo total usado para ejecutar el kernel", f"results/{_bin}_computing_kernel_comp.png")
+plot("updating_buffers", "Tiempo total usado para actualizar buffers (μs)", f"results/{_bin}_updatingTime.png")
